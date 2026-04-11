@@ -18,8 +18,16 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.type !== 'application/pdf') {
-        toast.error('Only PDF files are allowed');
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/csv',
+        'application/vnd.ms-excel'
+      ];
+      
+      if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.endsWith('.csv')) {
+        toast.error('Only PDF, Word, and CSV files are allowed');
         return;
       }
       setFile(selectedFile);
@@ -100,7 +108,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
           Upload PDF Form
         </CardTitle>
         <CardDescription>
-          Select a PDF file and category to store it securely in the India Post Digital Repository.
+          Select a PDF, Word, or CSV file and category to store it securely in the India Post Digital Repository.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -138,7 +146,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept=".pdf"
+            accept=".pdf,.doc,.docx,.csv"
             className="hidden"
           />
           
@@ -160,7 +168,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
                 </div>
                 <div>
                   <p className="text-sm font-medium">Click to browse or drag and drop</p>
-                  <p className="text-xs text-muted-foreground">Only PDF files are supported</p>
+                  <p className="text-xs text-muted-foreground">PDF, Word, and CSV files are supported</p>
                 </div>
               </>
             )}

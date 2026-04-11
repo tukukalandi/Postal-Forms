@@ -68,36 +68,32 @@ export default function App() {
     <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-primary/20">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-md">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center shadow-inner border-2 border-primary">
-              <ShieldCheck className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black tracking-tighter uppercase leading-none">India Post</h1>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Form Saver</span>
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" 
+              alt="National Emblem of India" 
+              className="h-12 w-auto brightness-0 invert"
+              referrerPolicy="no-referrer"
+            />
+            <div className="flex flex-col border-l border-white/20 pl-3">
+              <h1 className="text-lg md:text-xl font-black tracking-tighter uppercase leading-none">India Post</h1>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Digital Repository</span>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="hidden lg:flex items-center gap-6 text-xs font-bold uppercase tracking-wider mr-4">
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary text-secondary-foreground rounded-full">
-                <Database className="w-3.5 h-3.5" />
-                Digital Repository
-              </div>
-            </div>
-
             <div className="flex items-center gap-2">
               <Button 
                 variant="secondary" 
                 size="sm" 
                 onClick={handlePortalToggle}
-                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-[10px] uppercase tracking-widest px-4 h-8"
+                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-[10px] uppercase tracking-widest px-3 md:px-4 h-8"
               >
                 {isInternalMode ? (
-                  <><Files className="w-3 h-3 mr-2" /> Public View</>
+                  <><Files className="w-3 h-3 mr-1 md:mr-2" /> Public</>
                 ) : (
-                  <><ShieldAlert className="w-3 h-3 mr-2" /> Internal Portal</>
+                  <><ShieldAlert className="w-3 h-3 mr-1 md:mr-2" /> Portal</>
                 )}
               </Button>
 
@@ -106,13 +102,18 @@ export default function App() {
                   variant="ghost" 
                   size="sm" 
                   onClick={handleLogout}
-                  className="text-primary-foreground hover:bg-white/10 font-bold text-[10px] uppercase tracking-widest h-8"
+                  className="text-primary-foreground hover:bg-white/10 font-bold text-[10px] uppercase tracking-widest h-8 px-2"
                 >
-                  <LogOut className="w-3 h-3 mr-2" />
-                  Logout
+                  <LogOut className="w-3 h-3" />
                 </Button>
               )}
             </div>
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/en/3/32/India_Post.svg" 
+              alt="India Post Logo" 
+              className="h-10 w-auto bg-white p-1 rounded shadow-sm hidden sm:block"
+              referrerPolicy="no-referrer"
+            />
           </div>
         </div>
         <div className="h-1 w-full bg-secondary"></div>
@@ -222,9 +223,14 @@ export default function App() {
             <ShieldCheck className="w-5 h-5" />
             <span className="font-bold uppercase tracking-widest text-xs">India Post Digital Repository</span>
           </div>
-          <p className="text-xs opacity-60">
-            &copy; {new Date().getFullYear()} India Post. All rights reserved. Secure Cloud Storage Powered by Supabase.
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-tighter opacity-90">
+              Prepared by Kalandi Charan Sahoo, OA, DO, Dhenkanal Postal Division
+            </p>
+            <p className="text-[10px] opacity-60">
+              &copy; {new Date().getFullYear()} India Post. All rights reserved. Secure Cloud Storage Powered by Supabase.
+            </p>
+          </div>
         </div>
       </footer>
 
