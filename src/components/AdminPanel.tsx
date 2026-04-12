@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, FileText, Calendar, ShieldAlert, Loader2, ExternalLink, AlertTriangle, Copy, Check, Tag } from 'lucide-react';
+import { Search, Trash2, FileText, Calendar, ShieldAlert, Loader2, ExternalLink, AlertTriangle, Copy, Check, Tag, Youtube, FileSpreadsheet, Link as LinkIcon, Info } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: number, onUpdate: () => void }) {
@@ -55,21 +55,20 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
     try {
       setDeletingId(fileToDelete.id);
       
-      const urlWithoutParams = fileToDelete.url.split('?')[0];
-      const urlParts = urlWithoutParams.split('/');
-      const fileName = urlParts[urlParts.length - 1];
+      if (!fileToDelete.is_link) {
+        const urlWithoutParams = fileToDelete.url.split('?')[0];
+        const urlParts = urlWithoutParams.split('/');
+        const fileName = urlParts[urlParts.length - 1];
 
-      console.log('Attempting to delete file from storage:', fileName);
+        const { error: storageError } = await supabase.storage
+          .from('forms')
+          .remove([fileName]);
 
-      const { error: storageError } = await supabase.storage
-        .from('forms')
-        .remove([fileName]);
-
-      if (storageError) {
-        console.warn('Storage delete warning (continuing with DB delete):', storageError);
+        if (storageError) {
+          console.warn('Storage delete warning (continuing with DB delete):', storageError);
+        }
       }
 
-      console.log('Attempting to delete record from database:', fileToDelete.id);
       const { error: dbError, count } = await supabase
         .from('files')
         .delete({ count: 'exact' })
@@ -77,19 +76,12 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
 
       if (dbError) throw dbError;
 
-      if (count === 0) {
-        console.error('Delete failed: 0 rows affected. Check RLS policies.');
-        throw new Error('No record was deleted. Please ensure you have enabled DELETE policies in Supabase.');
-      }
-
       setFiles(prev => prev.filter(f => f.id !== fileToDelete.id));
-      
-      toast.success(`"${fileToDelete.name}" deleted successfully`);
-      
+      toast.success(`"${fileToDelete.custom_name || fileToDelete.name}" deleted successfully`);
       onUpdate(); 
     } catch (error: any) {
       console.error('Delete error:', error);
-      toast.error(error.message || 'Failed to delete file. Check your Supabase RLS policies.');
+      toast.error(error.message || 'Failed to delete resource.');
     } finally {
       setDeletingId(null);
       setFileToDelete(null);
@@ -103,10 +95,15 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const filteredFiles = files.filter(file => 
-    file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (file.category && file.category.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredFiles = files.filter(file => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      file.name.toLowerCase().includes(searchLower) ||
+      (file.custom_name && file.custom_name.toLowerCase().includes(searchLower)) ||
+      (file.category && file.category.toLowerCase().includes(searchLower)) ||
+      (file.instructions && file.instructions.toLowerCase().includes(searchLower))
+    );
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -117,15 +114,21 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
   };
 
   const formatSize = (bytes: number) => {
+    if (bytes === 0) return 'Link';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB'];
-    if (bytes === 0) return '0 Bytes';
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getFileIcon = (file: FileMetadata) => {
+    if (file.is_link) return <Youtube className="w-5 h-5 text-red-600" />;
+    if (file.name.match(/\.(xls|xlsx|csv)$/)) return <FileSpreadsheet className="w-5 h-5 text-green-600" />;
+    return <FileText className="w-5 h-5 text-primary" />;
+  };
+
   return (
-    <Card className="w-full max-w-5xl mx-auto border-2 border-primary/20 shadow-xl">
+    <Card className="w-full border-2 border-primary/20 shadow-xl">
       <CardHeader className="bg-primary/5 border-b border-primary/10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -169,9 +172,9 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs pl-6">Document Name</TableHead>
+                  <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs pl-6">Resource Name</TableHead>
                   <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs">Category</TableHead>
-                  <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs">Metadata</TableHead>
+                  <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs">Type/Size</TableHead>
                   <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs">Upload Date</TableHead>
                   <TableHead className="text-right text-primary font-bold uppercase tracking-tighter text-xs pr-6">Management</TableHead>
                 </TableRow>
@@ -182,11 +185,16 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg">
-                          <FileText className="w-5 h-5 text-primary" />
+                          {getFileIcon(file)}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-sm truncate max-w-[200px] md:max-w-md">{file.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono uppercase">{file.id.substring(0, 8)}...</span>
+                          <span className="font-bold text-sm truncate max-w-[200px] md:max-w-md">{file.custom_name || file.name}</span>
+                          {file.instructions && (
+                            <span className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                              <Info className="w-3 h-3" />
+                              {file.instructions}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </TableCell>
@@ -200,8 +208,8 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-medium">{formatSize(file.size)}</span>
-                        <span className="text-[10px] text-muted-foreground uppercase">{file.type.split('/')[1]}</span>
+                        <span className="text-xs font-medium">{file.is_link ? 'Video Link' : formatSize(file.size)}</span>
+                        {!file.is_link && <span className="text-[10px] text-muted-foreground uppercase">{file.type.split('/')[1]}</span>}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -266,7 +274,7 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
               Confirm Permanent Deletion
             </AlertDialogTitle>
             <AlertDialogDescription className="text-foreground/80">
-              Are you sure you want to delete <span className="font-bold text-foreground">"{fileToDelete?.name}"</span>? 
+              Are you sure you want to delete <span className="font-bold text-foreground">"{fileToDelete?.custom_name || fileToDelete?.name}"</span>? 
               This action will remove the record from the database and the physical file from the India Post storage. 
               This cannot be undone.
             </AlertDialogDescription>

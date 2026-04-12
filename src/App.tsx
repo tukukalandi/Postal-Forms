@@ -11,6 +11,7 @@ import { LoginModal } from './components/LoginModal';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { FileUp, Files, ShieldCheck, Database, AlertTriangle, ShieldAlert, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -65,10 +66,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-primary/20">
+    <TooltipProvider>
+      <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-primary/20">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-md">
-        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="w-full px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
               src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" 
@@ -119,8 +121,8 @@ export default function App() {
         <div className="h-1 w-full bg-secondary"></div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 md:py-12">
-        <div className="max-w-5xl mx-auto space-y-8">
+      <main className="w-full px-6 py-8 md:py-12">
+        <div className="w-full space-y-8">
           {!isConfigured && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
@@ -218,7 +220,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-auto py-12 border-t bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 text-center space-y-4">
+        <div className="w-full px-6 text-center space-y-4">
           <div className="flex justify-center items-center gap-2 opacity-80">
             <ShieldCheck className="w-5 h-5" />
             <span className="font-bold uppercase tracking-widest text-xs">India Post Digital Repository</span>
@@ -241,7 +243,8 @@ export default function App() {
         onClose={() => setIsLoginModalOpen(false)} 
         onLoginSuccess={handleLoginSuccess} 
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 
