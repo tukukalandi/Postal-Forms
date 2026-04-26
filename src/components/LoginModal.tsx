@@ -61,7 +61,7 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
           </div>
           <DialogTitle className="text-center text-xl font-bold uppercase tracking-tight">Internal Portal Access</DialogTitle>
           <DialogDescription className="text-center">
-            Sign in with your authorized Google account to manage the India Post Digital Repository.
+            Sign in with your authorized Google account to manage the India Post Forms/Documents repository.
           </DialogDescription>
         </DialogHeader>
 

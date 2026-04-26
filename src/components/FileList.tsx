@@ -109,7 +109,7 @@ export function FileList({ refreshTrigger }: { refreshTrigger: number }) {
     return (
       <div className="w-full space-y-8">
         <div className="text-center space-y-2">
-          <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Digital Repository</h2>
+          <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Forms & Documents</h2>
           <p className="text-muted-foreground font-medium">Select a category to view official India Post forms and resources</p>
         </div>
 

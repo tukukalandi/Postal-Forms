@@ -133,7 +133,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-5xl font-extrabold tracking-tight text-balance"
             >
-              {isInternalMode ? 'Internal Management Portal' : 'Official Form Repository'}
+              {isInternalMode ? 'Internal Management Portal' : 'India Post Forms/Documents'}
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -211,7 +211,7 @@ export default function App() {
         <div className="w-full px-6 text-center space-y-4">
           <div className="flex justify-center items-center gap-2 opacity-80">
             <ShieldCheck className="w-5 h-5" />
-            <span className="font-bold uppercase tracking-widest text-xs">India Post Digital Repository</span>
+            <span className="font-bold uppercase tracking-widest text-[10px]">India Post Forms/Documents</span>
           </div>
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-tighter opacity-90">
