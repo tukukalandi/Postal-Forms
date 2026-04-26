@@ -1,0 +1,29 @@
+{
+  "entities": {
+    "File": {
+      "title": "File Resource",
+      "description": "Metadata for an uploaded file or a shared link",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "custom_name": { "type": "string" },
+        "instructions": { "type": "string" },
+        "size": { "type": "integer" },
+        "url": { "type": "string" },
+        "type": { "type": "string" },
+        "category": { "type": "string" },
+        "is_link": { "type": "boolean" },
+        "storage_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "owner_id": { "type": "string" }
+      },
+      "required": ["name", "url", "category", "is_link", "owner_id"]
+    }
+  },
+  "firestore": {
+    "/files/{fileId}": {
+      "schema": "File",
+      "description": "Collection of all file resources and links"
+    }
+  }
+}

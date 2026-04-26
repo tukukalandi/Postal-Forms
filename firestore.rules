@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'tukukalandi@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // File Resource Validation
+    function isValidFile(data) {
+      return data.keys().hasAll(['name', 'url', 'category', 'is_link', 'owner_id']) &&
+             data.name is string && data.name.size() <= 255 &&
+             data.url is string && data.url.size() <= 1024 &&
+             data.category is string && data.category.size() <= 100 &&
+             data.is_link is bool &&
+             data.owner_id == request.auth.uid &&
+             (!('custom_name' in data) || (data.custom_name is string && data.custom_name.size() <= 255)) &&
+             (!('instructions' in data) || (data.instructions is string && data.instructions.size() <= 2000)) &&
+             (!('size' in data) || (data.size is int)) &&
+             (!('type' in data) || (data.type is string)) &&
+             (!('created_at' in data) || (data.created_at is timestamp));
+    }
+
+    // Files Collection
+    match /files/{fileId} {
+      allow read: if true; // Public repository access
+      
+      allow create: if isAdmin() && 
+                      isValidFile(request.resource.data) && 
+                      request.resource.data.created_at == request.time;
+      
+      allow update: if false; // Metadata is immutable for now, delete and re-upload
+      
+      allow delete: if isAdmin();
+    }
+
+    // Admin collection for role management
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Managed via console or super admin
+    }
+  }
+}

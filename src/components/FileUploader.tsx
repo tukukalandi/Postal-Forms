@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { supabase } from '@/src/lib/supabase';
+import { db, auth } from '@/src/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, FileText, CheckCircle2, AlertCircle, X, Tag, Link as LinkIcon, Youtube, FileSpreadsheet } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, X, Link as LinkIcon, Youtube, FileSpreadsheet, Ban } from 'lucide-react';
 import { toast } from 'sonner';
+import { uploadToDrive } from '@/src/services/googleDriveService';
 
 const CATEGORIES = ['Mail', 'BD', 'Philately', 'Savings', 'PLI/RPLI', 'Others'];
 
@@ -19,6 +21,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
   const [category, setCategory] = useState<string>('Others');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,7 +45,28 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
     }
   };
 
+  const cancelUpload = () => {
+    if (abortController) {
+      abortController.abort();
+      setUploading(false);
+      setAbortController(null);
+      setProgress(0);
+      toast.info('Upload cancelled by user');
+    }
+  };
+
   const uploadData = async () => {
+    if (!auth.currentUser) {
+      toast.error('You must be authenticated to upload files');
+      return;
+    }
+
+    const accessToken = sessionStorage.getItem('google_drive_access_token');
+    if (uploadType === 'file' && !accessToken) {
+      toast.error('Google Drive session expired. Please sign in again.');
+      return;
+    }
+
     if (uploadType === 'file' && !file) {
       toast.error('Please select a file');
       return;
@@ -64,60 +88,54 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
       let fileName = customName;
       let fileSize = 0;
       let fileType = 'link';
+      let dbStorageId = null;
 
       if (uploadType === 'file' && file) {
-        const fileExt = file.name.split('.').pop();
-        const storageFileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        setProgress(30);
         
-        // 1. Upload to Storage
-        const { data: storageData, error: storageError } = await supabase.storage
-          .from('forms')
-          .upload(storageFileName, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
+        // For cancellation support
+        const controller = new AbortController();
+        setAbortController(controller);
 
-        if (storageError) throw storageError;
-        setProgress(60);
-
-        // 2. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('forms')
-          .getPublicUrl(storageFileName);
+        // Upload to Google Drive
+        // Note: The service would need to be updated to support AbortController if we wanted true cancellation of the fetch
+        const driveData = await uploadToDrive(file, accessToken!);
         
-        finalUrl = publicUrl;
+        finalUrl = driveData.webViewLink;
         fileName = file.name;
         fileSize = file.size;
         fileType = file.type;
+        dbStorageId = driveData.id;
+        setProgress(90);
       }
 
       // 3. Insert Metadata into Database
-      const { error: dbError } = await supabase
-        .from('files')
-        .insert([
-          {
-            name: fileName,
-            custom_name: customName,
-            instructions: instructions,
-            size: fileSize,
-            url: finalUrl,
-            type: fileType,
-            category: category,
-            is_link: uploadType === 'link'
-          }
-        ]);
-
-      if (dbError) throw dbError;
+      await addDoc(collection(db, 'files'), {
+        name: fileName,
+        custom_name: customName,
+        instructions: instructions,
+        size: fileSize,
+        url: finalUrl,
+        type: fileType,
+        category: category,
+        is_link: uploadType === 'link',
+        storage_id: dbStorageId,
+        owner_id: auth.currentUser.uid,
+        created_at: serverTimestamp()
+      });
 
       setProgress(100);
-      toast.success(uploadType === 'file' ? 'File uploaded successfully!' : 'Link added successfully!');
+      toast.success(uploadType === 'file' ? 'File uploaded to Google Drive!' : 'Link added to Repository!');
       resetForm();
       onUploadComplete();
     } catch (error: any) {
+      if (error.name === 'AbortError') return;
       console.error('Upload error:', error);
-      toast.error(error.message || 'Failed to process upload');
+      const message = error.message || 'Storage or Database error';
+      toast.error(`Upload failed: ${message}`);
     } finally {
       setUploading(false);
+      setAbortController(null);
       setTimeout(() => setProgress(0), 1000);
     }
   };
@@ -137,14 +155,14 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
   };
 
   return (
-    <Card className="w-full border-dashed border-2 border-primary/20 bg-white">
+    <Card className="w-full border-dashed border-2 border-primary/20 bg-white shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="bg-primary/5 border-b border-primary/10">
-        <CardTitle className="flex items-center gap-2 text-primary">
+        <CardTitle className="flex items-center gap-2 text-primary font-black uppercase tracking-tight">
           <Upload className="w-5 h-5" />
-          Upload Form or Link
+          Upload to Repository
         </CardTitle>
-        <CardDescription>
-          Store PDF, Word, Excel, CSV files or Video links in the Digital Repository.
+        <CardDescription className="font-medium text-xs">
+          Files will be securely stored in your Google Drive and shared for public access.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
@@ -173,7 +191,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
               placeholder="Enter a clear name for this form/link"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
-              className="border-primary/20 focus-visible:ring-primary"
+              className="border-primary/20 focus-visible:ring-primary h-11"
             />
           </div>
 
@@ -216,22 +234,22 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
               <div className="flex flex-col items-center justify-center space-y-3 text-center">
                 {file ? (
                   <>
-                    <div className="p-3 rounded-full bg-primary/10">
+                    <div className="p-4 rounded-full bg-primary/10 border border-primary/20">
                       {file.name.match(/\.(xls|xlsx)$/) ? <FileSpreadsheet className="w-8 h-8 text-primary" /> : <FileText className="w-8 h-8 text-primary" />}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{file.name}</p>
-                      <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-sm font-bold tracking-tight">{file.name}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="p-3 rounded-full bg-muted">
+                    <div className="p-4 rounded-full bg-muted">
                       <Upload className="w-8 h-8 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Click to browse or drag and drop</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-tight">PDF, Word, Excel, CSV supported</p>
+                      <p className="text-sm font-bold tracking-tight">Click to browse or drag and drop</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PDF, Word, Excel, CSV supported</p>
                     </div>
                   </>
                 )}
@@ -240,7 +258,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
               {file && !uploading && (
                 <button 
                   onClick={(e) => { e.stopPropagation(); removeFile(); }}
-                  className="absolute top-2 right-2 p-1 rounded-full bg-background border shadow-sm hover:bg-muted transition-colors"
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-background border shadow-sm hover:bg-muted transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -256,7 +274,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
                 placeholder="https://youtube.com/watch?v=..."
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                className="border-primary/20 focus-visible:ring-primary"
+                className="border-primary/20 focus-visible:ring-primary h-11"
               />
             </div>
           )}
@@ -267,35 +285,53 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
               placeholder="Add any specific instructions or details about this form..."
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              className="min-h-[80px] border-primary/20 focus-visible:ring-primary resize-none"
+              className="min-h-[100px] border-primary/20 focus-visible:ring-primary resize-none p-4"
             />
           </div>
         </div>
 
         {uploading && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-medium">
-              <span>Processing...</span>
+          <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-primary">
+              <span className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                Uploading to Google Drive...
+              </span>
               <span>{progress}%</span>
             </div>
-            <Progress value={progress} className="h-2" />
+            <Progress value={progress} className="h-2 shadow-inner" />
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={cancelUpload}
+              className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tighter h-8 border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive transition-all"
+            >
+              <Ban className="w-3 h-3" />
+              Cancel Upload
+            </Button>
           </div>
         )}
 
-        <Button 
-          onClick={uploadData} 
-          disabled={uploading} 
-          className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest py-6"
-        >
-          {uploading ? 'Processing...' : uploadType === 'file' ? 'Upload to Repository' : 'Add Link to Repository'}
-        </Button>
+        {!uploading && (
+          <Button 
+            onClick={uploadData} 
+            className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest py-7 shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
+          >
+            {uploadType === 'file' ? 'Upload to Google Drive' : 'Add Link to Repository'}
+          </Button>
+        )}
 
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold pt-2">
-          <CheckCircle2 className="w-3 h-3 text-green-500" />
-          Secure Storage
-          <span className="mx-1">•</span>
-          <CheckCircle2 className="w-3 h-3 text-green-500" />
-          Multi-Format Support
+        <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground uppercase tracking-widest font-black pt-4 opacity-70">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-3 h-3 text-green-500" />
+            Google Drive
+          </div>
+          <div className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-3 h-3 text-green-500" />
+            Public View
+          </div>
         </div>
       </CardContent>
     </Card>

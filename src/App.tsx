@@ -4,6 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
+import { auth } from './lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { FileUploader } from './components/FileUploader';
 import { FileList } from './components/FileList';
 import { AdminPanel } from './components/AdminPanel';
@@ -18,17 +20,18 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState('upload');
-  const [isConfigured, setIsConfigured] = useState(true);
   const [isInternalMode, setIsInternalMode] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const url = import.meta.env.VITE_SUPABASE_URL;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    if (!url || !key || url === "" || key === "") {
-      setIsConfigured(false);
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+      if (!user) {
+        setIsInternalMode(false);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleUpdate = () => {
@@ -37,32 +40,31 @@ export default function App() {
 
   const handlePortalToggle = () => {
     if (isInternalMode) {
-      // If already in internal mode, just switch back to public
       setIsInternalMode(false);
       setActiveTab('files');
     } else {
-      // If in public mode, check if already authenticated
       if (isAuthenticated) {
         setIsInternalMode(true);
         setActiveTab('upload');
       } else {
-        // Otherwise show login modal
         setIsLoginModalOpen(true);
       }
     }
   };
 
   const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-    setIsLoginModalOpen(false);
     setIsInternalMode(true);
     setActiveTab('upload');
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setIsInternalMode(false);
-    setActiveTab('files');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setIsInternalMode(false);
+      setActiveTab('files');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
@@ -123,20 +125,6 @@ export default function App() {
 
       <main className="w-full px-6 py-8 md:py-12">
         <div className="w-full space-y-8">
-          {!isConfigured && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-amber-800 shadow-sm"
-            >
-              <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <p className="font-bold">Supabase Not Configured</p>
-                <p className="opacity-90">Please add <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_URL</code> and <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> to your environment variables in the Secrets panel to enable file storage.</p>
-              </div>
-            </motion.div>
-          )}
-
           {/* Hero Section */}
           <div className="text-center space-y-4 mb-12">
             <motion.h2 
@@ -230,7 +218,7 @@ export default function App() {
               Prepared by Kalandi Charan Sahoo, OA, DO, Dhenkanal Postal Division
             </p>
             <p className="text-[10px] opacity-60">
-              &copy; {new Date().getFullYear()} India Post. All rights reserved. Secure Cloud Storage Powered by Supabase.
+              &copy; {new Date().getFullYear()} India Post. All rights reserved. Secure Cloud Storage Powered by Firebase.
             </p>
           </div>
         </div>

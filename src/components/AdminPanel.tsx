@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/src/lib/supabase';
+import { db } from '@/src/lib/firebase';
+import { collection, query, orderBy, onSnapshot, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { deleteFromDrive } from '@/src/services/googleDriveService';
 import { FileMetadata } from '@/src/types';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,27 +28,30 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
   const [fileToDelete, setFileToDelete] = useState<FileMetadata | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const fetchFiles = async () => {
-    try {
-      console.log('AdminPanel: Fetching files with trigger:', refreshTrigger);
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('files')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setFiles(data || []);
-    } catch (error: any) {
-      console.error('AdminPanel Fetch error:', error);
-      toast.error('Failed to load files for administration');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchFiles();
+    setLoading(true);
+    const q = query(collection(db, 'files'), orderBy('created_at', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedFiles = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          created_at: data.created_at instanceof Timestamp 
+            ? data.created_at.toDate().toISOString() 
+            : data.created_at || new Date().toISOString()
+        } as FileMetadata;
+      });
+      setFiles(fetchedFiles);
+      setLoading(false);
+    }, (error) => {
+      console.error('AdminPanel Fetch error:', error);
+      toast.error('Failed to load records');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [refreshTrigger]);
 
   const confirmDelete = async () => {
@@ -55,33 +60,31 @@ export function AdminPanel({ refreshTrigger, onUpdate }: { refreshTrigger: numbe
     try {
       setDeletingId(fileToDelete.id);
       
-      if (!fileToDelete.is_link) {
-        const urlWithoutParams = fileToDelete.url.split('?')[0];
-        const urlParts = urlWithoutParams.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-
-        const { error: storageError } = await supabase.storage
-          .from('forms')
-          .remove([fileName]);
-
-        if (storageError) {
-          console.warn('Storage delete warning (continuing with DB delete):', storageError);
+      const accessToken = sessionStorage.getItem('google_drive_access_token');
+      
+      // 1. Delete from Google Drive if it's a file
+      if (!fileToDelete.is_link && (fileToDelete as any).storage_id) {
+        if (accessToken) {
+          try {
+            await deleteFromDrive((fileToDelete as any).storage_id, accessToken);
+          } catch (storageError) {
+            console.warn('Google Drive delete warning:', storageError);
+            // Continue even if storage delete fails
+          }
+        } else {
+          console.warn('No access token found for Drive deletion');
         }
       }
 
-      const { error: dbError, count } = await supabase
-        .from('files')
-        .delete({ count: 'exact' })
-        .eq('id', fileToDelete.id);
+      // 2. Delete from Firestore
+      await deleteDoc(doc(db, 'files', fileToDelete.id));
 
-      if (dbError) throw dbError;
-
-      setFiles(prev => prev.filter(f => f.id !== fileToDelete.id));
       toast.success(`"${fileToDelete.custom_name || fileToDelete.name}" deleted successfully`);
       onUpdate(); 
     } catch (error: any) {
       console.error('Delete error:', error);
-      toast.error(error.message || 'Failed to delete resource.');
+      const message = error.message || 'Deletion failed';
+      toast.error(`Failed to delete: ${message}`);
     } finally {
       setDeletingId(null);
       setFileToDelete(null);

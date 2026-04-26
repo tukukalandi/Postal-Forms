@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/src/lib/supabase';
+import { db } from '@/src/lib/firebase';
+import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { FileMetadata } from '@/src/types';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,7 +29,6 @@ import { toast } from 'sonner';
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -47,26 +47,30 @@ export function FileList({ refreshTrigger }: { refreshTrigger: number }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const fetchFiles = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('files')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setFiles(data || []);
-    } catch (error: any) {
-      console.error('FileList Fetch error:', error);
-      toast.error('Failed to load files from database');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchFiles();
+    setLoading(true);
+    const q = query(collection(db, 'files'), orderBy('created_at', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedFiles = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          created_at: data.created_at instanceof Timestamp 
+            ? data.created_at.toDate().toISOString() 
+            : data.created_at || new Date().toISOString()
+        } as FileMetadata;
+      });
+      setFiles(fetchedFiles);
+      setLoading(false);
+    }, (error) => {
+      console.error('FileList Fetch error:', error);
+      toast.error('Failed to load repository');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [refreshTrigger]);
 
   const filteredFiles = files.filter(file => {
