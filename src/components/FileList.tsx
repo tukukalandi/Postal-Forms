@@ -23,7 +23,10 @@ import {
   HeartPulse,
   Youtube,
   FileSpreadsheet,
-  Info
+  Info,
+  Image,
+  Link2,
+  MessageCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -192,78 +195,87 @@ export function FileList({ refreshTrigger }: { refreshTrigger: number }) {
             </p>
           </div>
         ) : (
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs">Resource Name</TableHead>
-                  <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs">Type/Size</TableHead>
-                  <TableHead className="text-primary font-bold uppercase tracking-tighter text-xs">Date</TableHead>
-                  <TableHead className="text-right text-primary font-bold uppercase tracking-tighter text-xs">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredFiles.map((file) => (
-                  <TableRow key={file.id} className="group hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-3 py-1">
-                        <div className="p-2 bg-primary/5 rounded-md group-hover:bg-primary/10 transition-colors">
-                          {getFileIcon(file)}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-foreground tracking-tight truncate max-w-[200px] md:max-w-xs group-hover:text-primary transition-colors">
-                            {file.custom_name || file.name}
-                          </span>
-                          {file.instructions && (
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground italic">
-                              <Info className="w-3 h-3" />
-                              <span className="truncate max-w-[180px]">{file.instructions}</span>
-                            </div>
-                          )}
-                        </div>
+          <div className="space-y-4">
+            {filteredFiles.map((file) => {
+              const dateObj = new Date(file.created_at);
+              const day = dateObj.toLocaleDateString('en-US', { day: '2-digit' });
+              const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
+              const yearForm = dateObj.toLocaleDateString('en-US', { year: '2-digit' });
+              const time = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+              
+              let actionConfig = { text: 'View Document', icon: FileText, bg: 'bg-purple-100', textColors: 'text-purple-700', hover: 'hover:bg-purple-200' };
+              if (file.is_link) {
+                actionConfig = { text: 'Watch Video', icon: Youtube, bg: 'bg-blue-100', textColors: 'text-blue-700', hover: 'hover:bg-blue-200' };
+              } else if (file.name.match(/\.(pdf)$/i)) {
+                actionConfig = { text: 'View PDF', icon: FileText, bg: 'bg-red-100', textColors: 'text-red-700', hover: 'hover:bg-red-200' };
+              } else if (file.name.match(/\.(png|jpg|jpeg|gif)$/i)) {
+                actionConfig = { text: 'View Image', icon: Image, bg: 'bg-orange-100', textColors: 'text-orange-700', hover: 'hover:bg-orange-200' };
+              } else if (file.name.match(/\.(xls|xlsx|csv)$/i)) {
+                actionConfig = { text: 'View Excel', icon: FileSpreadsheet, bg: 'bg-green-100', textColors: 'text-green-700', hover: 'hover:bg-green-200' };
+              }
+
+              const ActionIcon = actionConfig.icon;
+
+              return (
+                <div key={file.id} className="flex flex-col lg:flex-row bg-[#1b2333] rounded-xl overflow-hidden border border-[#2b354d] shadow-md transform transition-all hover:scale-[1.005]">
+                  {/* Date section */}
+                  <div className="bg-[#661e24] lg:w-[130px] flex lg:flex-col items-center justify-between lg:justify-center p-4 lg:p-0 gap-2 lg:gap-1 text-white border-b lg:border-b-0 lg:border-r border-[#1b2333]/50 shrink-0">
+                    <div className="text-3xl lg:text-4xl font-extrabold tracking-tighter flex items-baseline gap-1.5">
+                      {day} <span className="text-sm font-bold opacity-90 tracking-normal">{month} '{yearForm}</span>
+                    </div>
+                    <div className="text-xs font-semibold opacity-75">{time}</div>
+                  </div>
+                  
+                  {/* Main content */}
+                  <div className="flex-1 p-5 lg:pl-6 flex flex-col justify-center gap-1.5 min-w-0">
+                    <div className="text-[11px] font-black uppercase tracking-widest text-white/50">
+                      {file.category}
+                    </div>
+                    <div className="text-white font-bold text-base md:text-lg lg:text-xl truncate">
+                      {file.custom_name || file.name}
+                    </div>
+                    {file.instructions && (
+                      <div className="text-white/40 text-xs truncate mt-0.5">
+                        {file.instructions}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {file.is_link ? (
-                        <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-bold uppercase text-[9px]">Video Link</span>
-                      ) : (
-                        formatSize(file.size)
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {formatDate(file.created_at)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        {!file.is_link && (
-                          <Tooltip>
-                            <TooltipTrigger 
-                              className="h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-muted hover:text-foreground transition-colors"
-                              onClick={() => window.open(file.url, '_blank')}
-                            >
-                              <Download className="h-4 w-4" />
-                            </TooltipTrigger>
-                            <TooltipContent>Download</TooltipContent>
-                          </Tooltip>
-                        )}
-                        <Tooltip>
-                          <TooltipTrigger 
-                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-muted hover:text-foreground transition-colors"
-                            onClick={() => window.open(file.url, '_blank')}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </TooltipTrigger>
-                          <TooltipContent>{file.is_link ? 'Open Link' : 'View Online'}</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="p-4 lg:py-5 lg:px-6 flex flex-wrap items-center gap-3 justify-end shrink-0 bg-[#1b2333]">
+                    <Button 
+                      variant="secondary"
+                      className={`h-11 px-5 flex items-center justify-center gap-2.5 ${actionConfig.bg} ${actionConfig.textColors} ${actionConfig.hover} border-none font-bold text-sm`}
+                      onClick={() => window.open(file.url, '_blank')}
+                    >
+                      <ActionIcon className="w-4 h-4" />
+                      {actionConfig.text}
+                    </Button>
+                    
+                    <Button 
+                      size="icon"
+                      variant="secondary"
+                      className="h-11 w-11 bg-green-100 text-green-700 hover:bg-green-200 border-none shrink-0 rounded-lg"
+                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Check out this file from India Post Digital Repository: ${file.url}`)}`, '_blank')}
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </Button>
+                    
+                    <Button 
+                      size="icon"
+                      variant="secondary"
+                      className="h-11 w-11 bg-blue-100 text-blue-700 hover:bg-blue-200 border-none shrink-0 rounded-lg"
+                      onClick={() => {
+                        navigator.clipboard.writeText(file.url);
+                        toast.success('Link copied to clipboard');
+                      }}
+                    >
+                      <Link2 className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>
