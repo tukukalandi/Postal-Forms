@@ -26,7 +26,12 @@ import {
   Info,
   Image,
   Link2,
-  MessageCircle
+  MessageCircle,
+  Presentation,
+  Smartphone,
+  Cpu,
+  Package,
+  Globe
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -37,10 +42,14 @@ import {
 
 const CATEGORIES = [
   { name: 'Mail', icon: Mail, color: 'bg-blue-500' },
-  { name: 'BD', icon: Briefcase, color: 'bg-orange-500' },
+  { name: 'CCS', icon: Briefcase, color: 'bg-orange-500' },
+  { name: 'Parcel', icon: Package, color: 'bg-amber-500' },
   { name: 'Philately', icon: Stamp, color: 'bg-purple-500' },
   { name: 'Savings', icon: PiggyBank, color: 'bg-green-500' },
   { name: 'PLI/RPLI', icon: HeartPulse, color: 'bg-red-500' },
+  { name: 'Fonacle', icon: Smartphone, color: 'bg-cyan-500' },
+  { name: 'APT 2.0', icon: Cpu, color: 'bg-indigo-500' },
+  { name: 'IRGB', icon: Globe, color: 'bg-teal-500' },
   { name: 'Others', icon: MoreHorizontal, color: 'bg-gray-500' },
 ];
 
@@ -203,10 +212,12 @@ export function FileList({ refreshTrigger }: { refreshTrigger: number }) {
                 actionConfig = { text: 'Watch Video', icon: Youtube, bg: 'bg-blue-100', textColors: 'text-blue-700', hover: 'hover:bg-blue-200' };
               } else if (file.name.match(/\.(pdf)$/i)) {
                 actionConfig = { text: 'View PDF', icon: FileText, bg: 'bg-red-100', textColors: 'text-red-700', hover: 'hover:bg-red-200' };
-              } else if (file.name.match(/\.(png|jpg|jpeg|gif)$/i)) {
+              } else if (file.name.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
                 actionConfig = { text: 'View Image', icon: Image, bg: 'bg-orange-100', textColors: 'text-orange-700', hover: 'hover:bg-orange-200' };
               } else if (file.name.match(/\.(xls|xlsx|csv)$/i)) {
                 actionConfig = { text: 'View Excel', icon: FileSpreadsheet, bg: 'bg-green-100', textColors: 'text-green-700', hover: 'hover:bg-green-200' };
+              } else if (file.name.match(/\.(ppt|pptx)$/i)) {
+                actionConfig = { text: 'View Presentation', icon: Presentation, bg: 'bg-pink-100', textColors: 'text-pink-700', hover: 'hover:bg-pink-200' };
               }
 
               const ActionIcon = actionConfig.icon;

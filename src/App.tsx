@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { auth } from './lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { FileUploader } from './components/FileUploader';
 import { FileList } from './components/FileList';
 import { AdminPanel } from './components/AdminPanel';
@@ -13,6 +13,7 @@ import { LoginModal } from './components/LoginModal';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { FileUp, Files, ShieldCheck, Database, AlertTriangle, ShieldAlert, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -67,37 +68,69 @@ export default function App() {
     }
   };
 
+  const handleConnectDrive = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        sessionStorage.setItem('google_drive_access_token', credential.accessToken);
+      }
+      
+      if (result.user) {
+        toast.success('Connected to Google Drive');
+        setIsInternalMode(true);
+        setActiveTab('upload');
+      }
+    } catch (error) {
+      console.error('Drive connection error:', error);
+      toast.error('Failed to connect Google Drive');
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-primary/20">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-md">
-        <div className="w-full px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="w-full px-3 md:px-6 h-16 md:h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2 md:gap-3 shrink-0 mr-2">
             <img 
               src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" 
               alt="National Emblem of India" 
-              className="h-12 w-auto brightness-0 invert"
+              className="h-8 md:h-12 w-auto brightness-0 invert shrink-0"
               referrerPolicy="no-referrer"
             />
-            <div className="flex flex-col border-l border-white/20 pl-3">
-              <h1 className="text-lg md:text-xl font-black tracking-tighter uppercase leading-none">India Post</h1>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Digital Repository</span>
+            <div className="flex flex-col border-l border-white/20 pl-2 md:pl-3 min-w-0">
+              <h1 className="text-sm md:text-xl font-black tracking-tighter uppercase leading-none truncate">India Post</h1>
+              <span className="text-[8px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.2em] opacity-80 truncate">Digital Repository</span>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <Button 
+                onClick={handleConnectDrive}
+                variant="outline" 
+                size="sm" 
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold text-[10px] uppercase tracking-widest px-2 sm:px-3 md:px-4 h-8 gap-1 md:gap-2 flex"
+              >
+                <Database className="w-3 h-3 shrink-0" />
+                <span className="hidden sm:inline">Connect </span>
+                <span>Drive</span>
+              </Button>
               <Button 
                 variant="secondary" 
                 size="sm" 
                 onClick={handlePortalToggle}
-                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-[10px] uppercase tracking-widest px-3 md:px-4 h-8"
+                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-[9px] md:text-[10px] uppercase tracking-widest px-2 sm:px-3 md:px-4 h-8"
               >
                 {isInternalMode ? (
-                  <><Files className="w-3 h-3 mr-1 md:mr-2" /> Public</>
+                  <><Files className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">Public</span></>
                 ) : (
-                  <><ShieldAlert className="w-3 h-3 mr-1 md:mr-2" /> Portal</>
+                  <><ShieldAlert className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">Portal</span></>
                 )}
               </Button>
 

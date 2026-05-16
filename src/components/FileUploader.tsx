@@ -6,11 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, FileText, CheckCircle2, X, Link as LinkIcon, Youtube, FileSpreadsheet, Ban } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, X, Link as LinkIcon, Youtube, FileSpreadsheet, Ban, Image as ImageIcon, Presentation } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadToDrive } from '@/src/services/googleDriveService';
 
-const CATEGORIES = ['Mail', 'BD', 'Philately', 'Savings', 'PLI/RPLI', 'Others'];
+const CATEGORIES = ['Mail', 'CCS', 'Parcel', 'Philately', 'Savings', 'PLI/RPLI', 'Fonacle', 'APT 2.0', 'IRGB', 'Others'];
 
 export function FileUploader({ onUploadComplete }: { onUploadComplete: () => void }) {
   const [uploadType, setUploadType] = useState<'file' | 'link'>('file');
@@ -33,11 +33,17 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'text/csv',
         'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
       ];
       
-      if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.endsWith('.csv') && !selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
-        toast.error('Only PDF, Word, Excel, and CSV files are allowed');
+      if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(csv|xlsx|xls|pdf|doc|docx|ppt|pptx|jpg|jpeg|png|gif|webp)$/i)) {
+        toast.error('Only PDF, Word, Excel, CSV, PPT, and Image files are allowed');
         return;
       }
       setFile(selectedFile);
@@ -227,7 +233,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept=".pdf,.doc,.docx,.csv,.xls,.xlsx"
+                accept=".pdf,.doc,.docx,.csv,.xls,.xlsx,.ppt,.pptx,image/*"
                 className="hidden"
               />
               
@@ -235,7 +241,10 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
                 {file ? (
                   <>
                     <div className="p-4 rounded-full bg-primary/10 border border-primary/20">
-                      {file.name.match(/\.(xls|xlsx)$/) ? <FileSpreadsheet className="w-8 h-8 text-primary" /> : <FileText className="w-8 h-8 text-primary" />}
+                      {file.name.match(/\.(xls|xlsx|csv)$/i) ? <FileSpreadsheet className="w-8 h-8 text-primary" /> : 
+                       file.name.match(/\.(ppt|pptx)$/i) ? <Presentation className="w-8 h-8 text-primary" /> :
+                       file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) || file.type.startsWith('image/') ? <ImageIcon className="w-8 h-8 text-primary" /> :
+                       <FileText className="w-8 h-8 text-primary" />}
                     </div>
                     <div>
                       <p className="text-sm font-bold tracking-tight">{file.name}</p>
@@ -249,7 +258,7 @@ export function FileUploader({ onUploadComplete }: { onUploadComplete: () => voi
                     </div>
                     <div>
                       <p className="text-sm font-bold tracking-tight">Click to browse or drag and drop</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PDF, Word, Excel, CSV supported</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PDF, Word, Excel, PPT, CSV, Images supported</p>
                     </div>
                   </>
                 )}
