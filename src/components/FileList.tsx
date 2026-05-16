@@ -111,11 +111,6 @@ export function FileList({ refreshTrigger }: { refreshTrigger: number }) {
   if (!selectedCategory) {
     return (
       <div className="w-full space-y-8">
-        <div className="text-center space-y-2">
-          <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Forms & Documents</h2>
-          <p className="text-muted-foreground font-medium">Select a category to view official India Post forms and resources</p>
-        </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {CATEGORIES.map((cat) => {
             const count = files.filter(f => f.category === cat.name).length;
